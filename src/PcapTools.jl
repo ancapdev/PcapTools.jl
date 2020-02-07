@@ -4,7 +4,7 @@ using Blobs
 using Mmap
 
 export PcapStream
-export Packet
+export PcapRecord
 
 struct PcapHeader
     magic_number::UInt32
@@ -87,7 +87,7 @@ end
 
 Base.length(x::PcapStream) = length(x.data)
 
-struct Record
+struct PcapRecord
     timestamp::Int64 # nanoseconds since epoch
     len::Int64
     data::Ptr{Nothing}
@@ -132,7 +132,7 @@ function Base.read(x::PcapStream)
     end
     t = t1 + t2
     x.offset = o + sizeof(RecordHeader) + h.incl_len
-    Record(t, h.incl_len, pointer(x.data, o + sizeof(RecordHeader)))
+    PcapRecord(t, h.incl_len, pointer(x.data, o + sizeof(RecordHeader)))
 end
 
 
