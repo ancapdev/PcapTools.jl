@@ -6,25 +6,29 @@ using Mmap
 export PcapStream
 export PcapRecord
 
+# NOTE: Not using @enum because it craps out when displaying unknown values
+const LINKTYPE_NULL = UInt32(0)
+const LINKTYPE_ETHERNET = UInt32(1)
+
 struct PcapHeader
-    magic_number::UInt32
+    magic::UInt32
     version_major::UInt16
     version_minor::UInt16
     thiszone::Int32
     sigfigs::UInt32
     snaplen::UInt32
-    network::UInt32
+    linktype::UInt32
 end
 
 function Base.bswap(x::PcapHeader)
     PcapHeader(
-        bswap(x.magic_number),
+        bswap(x.magic),
         bswap(x.version_major),
         bswap(x.version_minor),
         bswap(x.thiszone),
         bswap(x.sigfigs),
         bswap(x.snaplen),
-        bswap(x.network))
+        bswap(x.linktype))
 end
 
 struct RecordHeader
@@ -56,16 +60,16 @@ mutable struct PcapStream
         data = Mmap.mmap(io)
         p = convert(Ptr{Nothing}, pointer(data))
         h = Blob{PcapTools.PcapHeader}(p, 0, length(data))[]
-        if h.magic_number == 0xa1b2c3d4
+        if h.magic == 0xa1b2c3d4
             bswapped = false
             nanotime = true
-        elseif h.magic_number == 0xd4c3b2a1
+        elseif h.magic == 0xd4c3b2a1
             bswapped = true
             nanotime = false
-        elseif h.magic_number == 0xa1b23c4d
+        elseif h.magic == 0xa1b23c4d
             bswapped = false
             nanotime = true
-        elseif h.magic_number == 0x4d3cb2a1
+        elseif h.magic == 0x4d3cb2a1
             bswapped = true
             nanotime = true
         else
@@ -125,14 +129,15 @@ function Base.read(x::PcapStream)
     if x.bswapped
         h = bswap(h)
     end
-    t1 = h.ts_sec * 1_000_000_000
+    # TODO: timezone adjustment
+    t1 = (h.ts_sec + x.header.thiszone) * 1_000_000_000
     t2 = Int64(h.ts_usec)
     if !x.nanotime
         t2 *= 1000
     end
     t = t1 + t2
     x.offset = o + sizeof(RecordHeader) + h.incl_len
-    PcapRecord(t, h.incl_len, pointer(x.data, o + sizeof(RecordHeader)))
+    PcapRecord(t, h.incl_len, pointer(x.data, o + sizeof(RecordHeader) + 1))
 end
 
 
