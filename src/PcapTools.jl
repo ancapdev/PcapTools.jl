@@ -93,7 +93,7 @@ Base.length(x::PcapStream) = length(x.data)
 
 struct PcapRecord
     timestamp::Int64 # nanoseconds since epoch
-    len::Int64
+    length::Int64
     data::Ptr{Nothing}
 end
 
