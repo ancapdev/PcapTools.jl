@@ -3,7 +3,7 @@ mutable struct PcapWriter{Dst <: IO}
 
     function PcapWriter{Dst}(dst::Dst; thiszone = 0, snaplen = 65535) where {Dst <: IO}
         h = PcapHeader(
-            0xa1b2c3d4,
+            0xa1b23c4d,
             0x0002,
             0x0004,
             thiszone,

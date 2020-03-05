@@ -14,7 +14,7 @@ mutable struct PcapReader
         h = unsafe_load(Ptr{PcapHeader}(pointer(data)))
         if h.magic == 0xa1b2c3d4
             bswapped = false
-            nanotime = true
+            nanotime = false
         elseif h.magic == 0xd4c3b2a1
             bswapped = true
             nanotime = false
@@ -30,7 +30,7 @@ mutable struct PcapReader
         if bswapped
             h = bswap(h)
         end
-        new(io, data, h, sizeof(h), -1, nanotime ? 1000 : 1, bswapped)
+        new(io, data, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped)
     end
 end
 
