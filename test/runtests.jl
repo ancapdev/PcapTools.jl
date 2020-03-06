@@ -2,5 +2,5 @@ using PcapTools
 using Test
 
 @testset "PcapTools.jl" begin
-    # Write your own tests here.
+    include("reader_tests.jl")
 end

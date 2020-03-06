@@ -1,5 +1,4 @@
 mutable struct PcapReader
-    io::IOStream
     data::Vector{UInt8}
     header::PcapHeader
     offset::Int64
@@ -7,9 +6,7 @@ mutable struct PcapReader
     usec_mul::Int64
     bswapped::Bool
 
-    function PcapReader(path::AbstractString)
-        io = open(path)
-        data = Mmap.mmap(io)
+    function PcapReader(data::Vector{UInt8})
         length(data) < sizeof(PcapHeader) && throw(EOFError())
         h = unsafe_load(Ptr{PcapHeader}(pointer(data)))
         if h.magic == 0xa1b2c3d4
@@ -25,17 +22,22 @@ mutable struct PcapReader
             bswapped = true
             nanotime = true
         else
-            throw(ArgumentError("$path is not a valid pcap file"))
+            throw(ArgumentError("Invalid pcap header"))
         end
         if bswapped
             h = bswap(h)
         end
-        new(io, data, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped)
+        new(data, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped)
     end
 end
 
+function PcapReader(path::AbstractString)
+    io = open(path)
+    data = Mmap.mmap(io)
+    PcapReader(data)
+end
+
 function Base.close(x::PcapReader)
-    close(x.io)
     x.data = UInt8[]
     x.offset = 0
     nothing
