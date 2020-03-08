@@ -3,7 +3,7 @@ abstract type PcapRecord end
 """
 Non-owning record of pcap data.
 Facilitates zero-copy and zero-allocation reading of pcap data.
-Underlying [`PcapBufferReader`](@PcapBufferReader) must remain referenced.
+Underlying [`PcapBufferReader`](@ref) must remain referenced.
 """
 struct ZeroCopyPcapRecord <: PcapRecord
     header::RecordHeader
