@@ -1,12 +1,15 @@
-@testset "PcapReader" begin
+make_reader(::Type{PcapBufferReader}, data::Vector{UInt8}) = PcapBufferReader(data)
+make_reader(::Type{PcapStreamReader}, data::Vector{UInt8}) = PcapStreamReader(IOBuffer(data))
+
+@testset "$T" for T in (PcapBufferReader, PcapStreamReader)
 
 @testset "empty" begin
-    @test_throws EOFError PcapReader(UInt8[])
+    @test_throws EOFError make_reader(T, UInt8[])
 end
 
 @testset "invalid" begin
-    @test_throws EOFError PcapReader([0x0])
-    @test_throws ArgumentError PcapReader(zeros(UInt8, 100))
+    @test_throws EOFError make_reader(T, [0x0])
+    @test_throws ArgumentError make_reader(T, zeros(UInt8, 100))
 end
 
 @testset "formats $endianness $timeres" for endianness in (:host, :swapped), timeres in (:us, :ns)
@@ -23,7 +26,7 @@ end
     unsafe_store!(Ptr{UInt32}(pointer(data) + 32), swapfun(UInt32(8))) # incl_len
     unsafe_store!(Ptr{UInt32}(pointer(data) + 36), swapfun(UInt32(8))) # orig_len
     unsafe_store!(Ptr{UInt64}(pointer(data) + 40), 0x0102030405060708) # orig_len
-    reader = PcapReader(data)
+    reader = make_reader(T, data)
     @test reader.header.magic == magic
     @test reader.header.version_major == 2
     @test reader.header.version_minor == 4

@@ -22,3 +22,25 @@ function Base.bswap(x::PcapHeader)
         bswap(x.snaplen),
         bswap(x.linktype))
 end
+
+function process_header(x::PcapHeader)
+    if x.magic == 0xa1b2c3d4
+        bswapped = false
+        nanotime = false
+    elseif x.magic == 0xd4c3b2a1
+        bswapped = true
+        nanotime = false
+    elseif x.magic == 0xa1b23c4d
+        bswapped = false
+        nanotime = true
+    elseif x.magic == 0x4d3cb2a1
+        bswapped = true
+        nanotime = true
+    else
+        throw(ArgumentError("Invalid pcap header"))
+    end
+    if bswapped
+        x = bswap(x)
+    end
+    x, bswapped, nanotime
+end
