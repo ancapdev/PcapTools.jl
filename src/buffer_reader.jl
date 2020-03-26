@@ -69,23 +69,40 @@ end
 
 Base.eof(x::PcapBufferReader) = (length(x) - x.offset) < sizeof(RecordHeader)
 
-"""
-    read(x::PcapBufferReader) -> ZeroCopyPcapRecord
-
-Read one record from pcap data. Throws `EOFError` if no more data available.
-"""
-function Base.read(x::PcapBufferReader)
+@inline function _read(x::PcapBufferReader)
     eof(x) && throw(EOFError())
-    h = unsafe_load(Ptr{RecordHeader}(pointer(x.data) + x.offset))
-    x.offset += sizeof(RecordHeader)
+    p = pointer(x.data) + x.offset
+    GC.@preserve x begin
+        h = unsafe_load(Ptr{RecordHeader}(p))
+    end
     if x.bswapped
         h = bswap(h)
     end
     t1 = (h.ts_sec + x.header.thiszone) * 1_000_000_000
     t2 = Int64(h.ts_usec) * x.usec_mul
     t = Dates.Nanosecond(t1 + t2)
-    payload = pointer(x.data) + x.offset
-    x.offset += h.incl_len
+    x.offset += sizeof(RecordHeader) + h.incl_len
     x.offset > length(x) && error("Insufficient data in pcap record")
+    h, t, p + sizeof(RecordHeader)
+end
+
+"""
+    read(x::PcapBufferReader, ::Type{ZeroCopyPcapRecord}) -> ZeroCopyPcapRecord
+    read(x::PcapBufferReader, ::Type{ArrayPcapRecord}) -> ArrayPcapRecord
+
+Read one record from pcap data. Throws `EOFError` if no more data available.
+"""
+function Base.read(x::PcapBufferReader, ::Type{ZeroCopyPcapRecord})
+    h, t, p = _read(x)
+    payload = UnsafeArray{UInt8, 1}(p, (Int(h.incl_len),))
     ZeroCopyPcapRecord(h, t, payload)
+end
+
+function Base.read(x::PcapBufferReader, ::Type{ArrayPcapRecord})
+    h, t, p = _read(x)
+    payload = Vector{UInt8}(undef, h.incl_len)
+    GC.@preserve x payload begin
+        unsafe_copyto!(pointer(payload), p, h.incl_len)
+    end
+    ArrayPcapRecord(h, t, payload)
 end

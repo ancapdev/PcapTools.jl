@@ -2,6 +2,7 @@ module PcapTools
 
 using Mmap
 using Dates
+using UnsafeArrays
 
 export PcapRecord, ZeroCopyPcapRecord, ArrayPcapRecord
 export PcapReader, PcapStreamReader, PcapBufferReader

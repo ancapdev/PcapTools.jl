@@ -12,7 +12,8 @@ end
     @test_throws ArgumentError make_reader(T, zeros(UInt8, 100))
 end
 
-@testset "formats $endianness $timeres" for endianness in (:host, :swapped), timeres in (:us, :ns)
+@testset "formats $endianness $timeres $recordtype" for endianness in (:host, :swapped), timeres in (:us, :ns), recordtype in (ZeroCopyPcapRecord, ArrayPcapRecord)
+    recordtype == ZeroCopyPcapRecord && T == PcapStreamReader && continue
     swapfun = endianness == :swapped ? bswap : identity
     magic = timeres == :ns ? 0xa1b23c4d : 0xa1b2c3d4
     data = zeros(UInt8, 24 + 16 + 8) # file header + record header + payload
@@ -32,14 +33,14 @@ end
     @test reader.header.version_minor == 4
     @test reader.header.snaplen == 65535
     @test reader.header.linktype == LINKTYPE_ETHERNET
-    record = read(reader)
+    record = read(reader, recordtype)
     @test eof(reader)
     @test record.header.ts_sec == 11
     @test record.header.ts_usec == 13
     @test record.header.incl_len == 8
     @test record.header.orig_len == 8
     @test record.timestamp.value == 11 * 1_000_000_000 + 13 * (timeres == :ns ? 1 : 1000)
-    @test unsafe_load(Ptr{UInt64}(record.data)) == 0x0102030405060708
+    @test unsafe_load(Ptr{UInt64}(pointer(record.data))) == 0x0102030405060708
 end
 
 end

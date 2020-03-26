@@ -38,11 +38,11 @@ Base.reset(x::PcapStreamReader) = reset(x.src)
 Base.eof(x::PcapStreamReader) = eof(x.src)
 
 """
-    read(x::PcapStreamReader) -> ArrayPcapRecord
+    read(x::PcapStreamReader, ::Type{ArrayPcapRecord}) -> ArrayPcapRecord
 
 Read one record from pcap data. Throws `EOFError` if no more data available.
 """
-function Base.read(x::PcapStreamReader)
+function Base.read(x::PcapStreamReader, ::Type{ArrayPcapRecord})
     record_header_ref = Ref{RecordHeader}()
     read!(x.src, record_header_ref)
     record_header = record_header_ref[]
