@@ -19,10 +19,11 @@ PcapWriter(io::IO; kwargs...) = PcapWriter{typeof(io)}(io; kwargs...)
 
 Base.close(x::PcapWriter) = close(x.dst)
 
-function Base.write(x::PcapWriter, timestamp::Nanosecond, data::Ptr{UInt8}, data_length::Integer)
+function Base.write(x::PcapWriter, timestamp::Nanosecond, data::DenseArray{UInt8})
     sec, nsec = fldmod(timestamp.value, 1_000_000_000)
+    data_length = length(data)
     h = RecordHeader(sec, nsec, data_length, data_length)
     write(x.dst, Ref(h))
-    unsafe_write(x.dst, data, data_length)
+    write(x.dst, data)
     nothing
 end
