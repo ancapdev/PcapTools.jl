@@ -2,6 +2,7 @@ module PcapTools
 
 using Mmap
 using Dates
+using UnixTimes
 using UnsafeArrays
 
 export PcapHeader, RecordHeader

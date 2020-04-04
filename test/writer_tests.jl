@@ -1,7 +1,7 @@
 @testset "PcapStreamWriter" begin
     io = IOBuffer()
     writer = PcapStreamWriter(io)
-    write(writer, Nanosecond(1234), [0x5, 0x6, 0x7, 0x8, 0x9])
+    write(writer, UnixTime(Dates.UTInstant(Nanosecond(1234))), [0x5, 0x6, 0x7, 0x8, 0x9])
     data = take!(io)
     @assert length(data) == sizeof(PcapHeader) + sizeof(RecordHeader) + 5
     GC.@preserve data begin

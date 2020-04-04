@@ -1,6 +1,6 @@
 struct PcapRecord{T}
     header::RecordHeader
-    timestamp::Dates.Nanosecond
+    timestamp::UnixTime
     data::T
 end
 

@@ -39,7 +39,7 @@ end
     @test record.header.ts_usec == 13
     @test record.header.incl_len == 8
     @test record.header.orig_len == 8
-    @test record.timestamp.value == 11 * 1_000_000_000 + 13 * (timeres == :ns ? 1 : 1000)
+    @test Dates.value(record.timestamp) == 11 * 1_000_000_000 + 13 * (timeres == :ns ? 1 : 1000)
     @test unsafe_load(Ptr{UInt64}(pointer(record.data))) == 0x0102030405060708
 end
 

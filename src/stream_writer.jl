@@ -20,8 +20,8 @@ PcapStreamWriter(path::AbstractString; kwargs...) = PcapStreamWriter(open(path, 
 
 Base.close(x::PcapStreamWriter) = close(x.dst)
 
-function Base.write(x::PcapStreamWriter, timestamp::Nanosecond, data::DenseArray{UInt8})
-    sec, nsec = fldmod(timestamp.value, 1_000_000_000)
+function Base.write(x::PcapStreamWriter, timestamp::UnixTime, data::DenseArray{UInt8})
+    sec, nsec = fldmod(Dates.value(timestamp), 1_000_000_000)
     data_length = length(data)
     h = RecordHeader(sec, nsec, data_length, data_length)
     write(x.dst, Ref(h))

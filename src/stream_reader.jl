@@ -51,7 +51,7 @@ function Base.read(x::PcapStreamReader, ::Type{ArrayPcapRecord})
     end
     t1 = (record_header.ts_sec + x.header.thiszone) * 1_000_000_000
     t2 = Int64(record_header.ts_usec) * x.usec_mul
-    t = Dates.Nanosecond(t1 + t2)
+    t = UnixTime(Dates.UTInstant(Nanosecond(t1 + t2)))
     payload = read(x.src, record_header.incl_len)
     ArrayPcapRecord(record_header, t, payload)
 end

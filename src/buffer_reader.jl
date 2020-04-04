@@ -80,7 +80,7 @@ Base.eof(x::PcapBufferReader) = (length(x) - x.offset) < sizeof(RecordHeader)
     end
     t1 = (h.ts_sec + x.header.thiszone) * 1_000_000_000
     t2 = Int64(h.ts_usec) * x.usec_mul
-    t = Dates.Nanosecond(t1 + t2)
+    t = UnixTime(Dates.UTInstant(Nanosecond(t1 + t2)))
     x.offset += sizeof(RecordHeader) + h.incl_len
     x.offset > length(x) && error("Insufficient data in pcap record")
     h, t, p + sizeof(RecordHeader)
