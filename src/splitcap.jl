@@ -103,8 +103,8 @@ function splitcap_mt(
             update!(p, reader.offset)
         finally
             for (buffer, ready_buffers) in values(outputs)
-                if !isempty(buffer)
-                    put!(ready_buffers, buffer)
+                if !isempty(buffer[])
+                    put!(ready_buffers, buffer[])
                 end
             end
             for (buffer, ready_buffers) in values(outputs)
