@@ -12,7 +12,7 @@ export PcapRecord, ZeroCopyPcapRecord, ArrayPcapRecord
 export PcapReader, PcapStreamReader, PcapBufferReader
 export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
-export splitcap
+export splitcap, splitcap_mt
 
 abstract type PcapReader end
 abstract type PcapWriter end
