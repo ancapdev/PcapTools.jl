@@ -1,7 +1,7 @@
 name = "PcapTools"
 uuid = "222fe7e8-3f39-464a-bf97-d9bbb753f246"
 authors = ["Christian Rorvik <christian.rorvik@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 BufferedStreams = "e1450e63-4bb3-523b-b2a4-4ffa8c0fd77d"
@@ -14,7 +14,7 @@ UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
 [compat]
 BufferedStreams = "1"
 ProgressMeter = "1.2"
-UnixTimes = "0.1"
+UnixTimes = "0"
 UnsafeArrays = "1"
 julia = "1.4"
 
