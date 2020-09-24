@@ -1,6 +1,5 @@
 module PcapTools
 
-using BufferedStreams
 using Dates
 using Mmap
 using ProgressMeter
@@ -12,7 +11,7 @@ export PcapRecord, ZeroCopyPcapRecord, ArrayPcapRecord
 export PcapReader, PcapStreamReader, PcapBufferReader
 export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
-export splitcap, splitcap_mt
+export splitcap
 
 abstract type PcapReader end
 abstract type PcapWriter end
