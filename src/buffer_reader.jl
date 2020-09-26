@@ -3,6 +3,7 @@ Reads pcap data from an array of bytes.
 """
 mutable struct PcapBufferReader <: PcapReader
     data::Vector{UInt8}
+    raw_header::Vector{UInt8}
     header::PcapHeader
     offset::Int64
     mark::Int64
@@ -17,9 +18,10 @@ mutable struct PcapBufferReader <: PcapReader
     """
     function PcapBufferReader(data::Vector{UInt8})
         length(data) < sizeof(PcapHeader) && throw(EOFError())
+        rh = data[1:sizeof(PcapHeader)]
         h = unsafe_load(Ptr{PcapHeader}(pointer(data)))
         h, bswapped, nanotime = process_header(h)
-        new(data, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped)
+        new(data, rh, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped)
     end
 end
 
@@ -69,9 +71,16 @@ end
 
 Base.eof(x::PcapBufferReader) = (length(x) - x.offset) < sizeof(RecordHeader)
 
-@inline function _read(x::PcapBufferReader)
+"""
+    read(x::PcapBufferReader) -> PcapRecord
+
+Read one record from pcap data.
+Throws `EOFError` if no more data available.
+"""
+@inline function Base.read(x::PcapBufferReader)
     eof(x) && throw(EOFError())
-    p = pointer(x.data) + x.offset
+    record_offset = x.offset
+    p = pointer(x.data) + record_offset
     GC.@preserve x begin
         h = unsafe_load(Ptr{RecordHeader}(p))
     end
@@ -83,26 +92,5 @@ Base.eof(x::PcapBufferReader) = (length(x) - x.offset) < sizeof(RecordHeader)
     t = UnixTime(Dates.UTInstant(Nanosecond(t1 + t2)))
     x.offset += sizeof(RecordHeader) + h.incl_len
     x.offset > length(x) && error("Insufficient data in pcap record")
-    h, t, p + sizeof(RecordHeader)
-end
-
-"""
-    read(x::PcapBufferReader, ::Type{ZeroCopyPcapRecord}) -> ZeroCopyPcapRecord
-    read(x::PcapBufferReader, ::Type{ArrayPcapRecord}) -> ArrayPcapRecord
-
-Read one record from pcap data. Throws `EOFError` if no more data available.
-"""
-function Base.read(x::PcapBufferReader, ::Type{ZeroCopyPcapRecord})
-    h, t, p = _read(x)
-    payload = UnsafeArray{UInt8, 1}(p, (Int(h.incl_len),))
-    ZeroCopyPcapRecord(h, t, payload)
-end
-
-function Base.read(x::PcapBufferReader, ::Type{ArrayPcapRecord})
-    h, t, p = _read(x)
-    payload = Vector{UInt8}(undef, h.incl_len)
-    GC.@preserve x payload begin
-        unsafe_copyto!(pointer(payload), p, h.incl_len)
-    end
-    ArrayPcapRecord(h, t, payload)
+    PcapRecord(h, t, x.data, record_offset)
 end

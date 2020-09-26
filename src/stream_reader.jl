@@ -3,9 +3,11 @@ Reads pcap data from a stream.
 """
 mutable struct PcapStreamReader{Src <: IO} <: PcapReader
     src::Src
+    raw_header::Vector{UInt8}
     header::PcapHeader
     usec_mul::Int64
     bswapped::Bool
+    record_buffer::Vector{UInt8}
 
     @doc """
         PcapStreamReader(src::IO)
@@ -14,10 +16,11 @@ mutable struct PcapStreamReader{Src <: IO} <: PcapReader
     and yield records through `read(::PcapStreamReader)`.
     """
     function PcapStreamReader(src::Src) where {Src <: IO}
-        header_ref = Ref{PcapHeader}()
-        read!(src, header_ref)
-        header, bswapped, nanotime = process_header(header_ref[])
-        new{Src}(src, header, nanotime ? 1 : 1000, bswapped)
+        raw_header = read(src, sizeof(PcapHeader))
+        length(raw_header) != sizeof(PcapHeader) && throw(EOFError())
+        h = GC.@preserve raw_header unsafe_load(Ptr{PcapHeader}(pointer(raw_header)))
+        header, bswapped, nanotime = process_header(h)
+        new{Src}(src, raw_header, header, nanotime ? 1 : 1000, bswapped, zeros(UInt8, 9000 + sizeof(RecordHeader)))
     end
 end
 
@@ -38,20 +41,23 @@ Base.reset(x::PcapStreamReader) = reset(x.src)
 Base.eof(x::PcapStreamReader) = eof(x.src)
 
 """
-    read(x::PcapStreamReader, ::Type{ArrayPcapRecord}) -> ArrayPcapRecord
+    read(x::PcapStreamReader) -> PcapRecord
 
-Read one record from pcap data. Throws `EOFError` if no more data available.
+Read one record from pcap data. Record is valid until next read().
+Throws `EOFError` if no more data available.
 """
-function Base.read(x::PcapStreamReader, ::Type{ArrayPcapRecord})
-    record_header_ref = Ref{RecordHeader}()
-    read!(x.src, record_header_ref)
-    record_header = record_header_ref[]
-    if x.bswapped
-        record_header = bswap(record_header)
+function Base.read(x::PcapStreamReader)
+    p = pointer(x.record_buffer)
+    GC.@preserve x begin
+        unsafe_read(x.src, p, sizeof(RecordHeader))
+        h = unsafe_load(Ptr{RecordHeader}(p))
+        if x.bswapped
+            h = bswap(h)
+        end
+        unsafe_read(x.src, p + sizeof(RecordHeader), h.incl_len)
     end
-    t1 = (record_header.ts_sec + x.header.thiszone) * 1_000_000_000
-    t2 = Int64(record_header.ts_usec) * x.usec_mul
+    t1 = (h.ts_sec + x.header.thiszone) * 1_000_000_000
+    t2 = Int64(h.ts_usec) * x.usec_mul
     t = UnixTime(Dates.UTInstant(Nanosecond(t1 + t2)))
-    payload = read(x.src, record_header.incl_len)
-    ArrayPcapRecord(record_header, t, payload)
+    PcapRecord(h, t, x.record_buffer, 0)
 end

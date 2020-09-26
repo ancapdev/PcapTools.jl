@@ -2,12 +2,11 @@ module PcapTools
 
 using Dates
 using Mmap
-using ProgressMeter
 using UnixTimes
 using UnsafeArrays
 
 export PcapHeader, RecordHeader
-export PcapRecord, ZeroCopyPcapRecord, ArrayPcapRecord
+export PcapRecord
 export PcapReader, PcapStreamReader, PcapBufferReader
 export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
