@@ -33,6 +33,7 @@ function splitcap(
                                     write($dstio, b)
                                     empty!(b)
                                     put!($(finished_buffers), b)
+                                    GC.safepoint()
                                 end
                             finally
                                 close($dstio)
@@ -53,6 +54,7 @@ function splitcap(
                 end
                 n += 1
                 progress_callback(n)
+                GC.safepoint()
             end
         finally
             for (buffer, ready_buffers) in values(outputs)
