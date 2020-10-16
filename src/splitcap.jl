@@ -1,78 +1,98 @@
 strip_nothing_(::Type{Union{Nothing, T}}) where T = T
 strip_nothing_(::Type{T}) where T = T
-infer_key_type_(record2key) = strip_nothing_(Core.Compiler.return_type(record2key, (PcapRecord,)))
 
 progress_noop_(n) = nothing
 
+mutable struct SplitCapOutput{S}
+    work_buffer::Vector{UInt8}
+    complete_buffers::Channel{Vector{UInt8}}
+    stream::S
+end
+
+# Since Julia (as of 1.5) doesn't support task migration,
+# continue with new task after each buffer write, to rebalance across threads
+function write_one_and_continue_(output::SplitCapOutput, free_buffers::Channel, pending::Threads.Atomic{Int})
+    i = iterate(output.complete_buffers)
+    if i === nothing
+        Threads.atomic_sub!(pending, 1)
+        return nothing
+    end
+    b, _ = i
+    write(output.stream, b)
+    empty!(b)
+    put!(free_buffers, b)
+    Threads.@spawn write_one_and_continue_($output, $free_buffers, $pending)
+end
+
 function splitcap(
     ::Type{KeyType},
+    ::Type{StreamType},
     reader::PcapReader,
     record2key,
     key2stream,
     progress_callback = progress_noop_
-) where {KeyType}
-    buffer_size = 1024 * 512
-    max_pending_buffers = 16
-    outputs = Dict{KeyType, Tuple{Ref{Vector{UInt8}}, Channel{Vector{UInt8}}}}()
-    finished_buffers = Channel{Vector{UInt8}}(Inf)
+) where {KeyType, StreamType}
+    buffer_size = 1024 * 1024 * 2
+    max_pending_buffers = 4
+    outputs = Dict{KeyType, SplitCapOutput{StreamType}}()
+    free_buffers = Channel{Vector{UInt8}}(Inf)
     n = 0
-    @sync begin
-        try
-            while !eof(reader)
-                record = read(reader)
-                dst = record2key(record)
-                if dst isa KeyType
-                    buffer, ready_buffers = get!(outputs, dst) do
-                        dstio = key2stream(dst)
-                        buffer = sizehint!(UInt8[], buffer_size)
-                        append!(buffer, reader.raw_header)
-                        ready_buffers = Channel{Vector{UInt8}}(max_pending_buffers)
-                        Threads.@spawn begin
-                            try
-                                for b in $(ready_buffers)
-                                    write($dstio, b)
-                                    empty!(b)
-                                    put!($(finished_buffers), b)
-                                    GC.safepoint()
-                                end
-                            finally
-                                close($dstio)
-                            end
-                            nothing
-                        end
-                        Ref(buffer), ready_buffers
-                    end
-                    append!(buffer[], record.raw)
-                    if length(buffer[]) >= buffer_size
-                        put!(ready_buffers, buffer[])
-                        if isready(finished_buffers)
-                            buffer[] = take!(finished_buffers)
-                        else
-                            buffer[] = sizehint!(UInt8[], buffer_size)
-                        end
+    pending = Threads.Atomic{Int}(0)
+    try
+        while !eof(reader)
+            record = read(reader)
+            dst = record2key(record)
+            if dst isa KeyType
+                output = get!(outputs, dst) do
+                    stream = key2stream(dst)
+                    buffer = sizehint!(UInt8[], buffer_size + 1500)
+                    append!(buffer, reader.raw_header)
+                    output = SplitCapOutput{StreamType}(
+                        buffer,
+                        Channel{Vector{UInt8}}(max_pending_buffers),
+                        stream)
+                    Threads.atomic_add!(pending, 1)
+                    Threads.@spawn write_one_and_continue_($output, $free_buffers, $pending)
+                    output
+                end
+                append!(output.work_buffer, record.raw)
+                if length(output.work_buffer) >= buffer_size
+                    put!(output.complete_buffers, output.work_buffer)
+                    if isready(free_buffers)
+                        output.work_buffer = take!(free_buffers)
+                    else
+                        output.work_buffer = sizehint!(UInt8[], buffer_size + 1500)
                     end
                 end
-                n += 1
-                progress_callback(n)
-                GC.safepoint()
             end
-        finally
-            for (buffer, ready_buffers) in values(outputs)
-                if !isempty(buffer[])
-                    put!(ready_buffers, buffer[])
-                end
+            n += 1
+            progress_callback(n)
+            GC.safepoint()
+        end
+        for output in values(outputs)
+            if !isempty(output.work_buffer)
+                put!(output.complete_buffers, output.work_buffer)
             end
-            for (buffer, ready_buffers) in values(outputs)
-                close(ready_buffers)
-            end
+            close(output.complete_buffers)
+        end
+        while pending[] != 0
+            sleep(0.1)
+        end
+    finally
+        for output in values(outputs)
+            close(output.stream)
         end
     end
     nothing
 end
 
-splitcap(
+function splitcap(
     reader::PcapReader,
     record2key,
     key2stream,
     progress_callback = progress_noop_
-) = splitcap(infer_key_type_(record2key), reader, record2key, key2stream, progress_callback)
+)
+    KeyType = strip_nothing_(Core.Compiler.return_type(record2key, (PcapRecord,)))
+    StreamType = Core.Compiler.return_type(key2stream, (KeyType,))
+    splitcap(KeyType, StreamType, reader, record2key, key2stream, progress_callback)
+end
