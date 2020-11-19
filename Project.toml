@@ -10,7 +10,7 @@ UnixTimes = "ab1a18e7-b408-4913-896c-624bb82ed7f4"
 UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
 
 [compat]
-UnixTimes = ">= 0.3"
+UnixTimes = "0.3 - 0"
 UnsafeArrays = "1"
 julia = "1.4"
 
