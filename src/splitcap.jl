@@ -31,7 +31,7 @@ function splitcap(
     record2key,
     key2stream,
     progress_callback = progress_noop_;
-    own_streams = true
+    own_streams::Bool = true
 ) where {KeyType, StreamType}
     buffer_size = 1024 * 1024 * 2
     max_pending_buffers = 4
