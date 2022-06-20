@@ -94,7 +94,7 @@ function splitcap(
     record2key,
     key2stream,
     progress_callback = progress_noop_;
-    own_streams = true
+    kwargs...
 )
     KeyType = strip_nothing_(Core.Compiler.return_type(record2key, (PcapRecord,)))
     StreamType = Core.Compiler.return_type(key2stream, (KeyType,))
