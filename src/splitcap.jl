@@ -30,7 +30,8 @@ function splitcap(
     reader::PcapReader,
     record2key,
     key2stream,
-    progress_callback = progress_noop_
+    progress_callback = progress_noop_;
+    own_streams = true
 ) where {KeyType, StreamType}
     buffer_size = 1024 * 1024 * 2
     max_pending_buffers = 4
@@ -46,7 +47,7 @@ function splitcap(
                 output = get!(outputs, dst) do
                     stream = key2stream(dst)
                     buffer = sizehint!(UInt8[], buffer_size + 1500)
-                    append!(buffer, reader.raw_header)
+                    own_streams && append!(buffer, reader.raw_header)
                     output = SplitCapOutput{StreamType}(
                         buffer,
                         Channel{Vector{UInt8}}(max_pending_buffers),
@@ -79,8 +80,10 @@ function splitcap(
             sleep(0.1)
         end
     finally
-        for output in values(outputs)
-            close(output.stream)
+        if own_streams
+            for output in values(outputs)
+                close(output.stream)
+            end
         end
     end
     nothing
@@ -90,9 +93,10 @@ function splitcap(
     reader::PcapReader,
     record2key,
     key2stream,
-    progress_callback = progress_noop_
+    progress_callback = progress_noop_;
+    own_streams = true
 )
     KeyType = strip_nothing_(Core.Compiler.return_type(record2key, (PcapRecord,)))
     StreamType = Core.Compiler.return_type(key2stream, (KeyType,))
-    splitcap(KeyType, StreamType, reader, record2key, key2stream, progress_callback)
+    splitcap(KeyType, StreamType, reader, record2key, key2stream, progress_callback; own_streams)
 end
