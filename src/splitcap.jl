@@ -96,7 +96,7 @@ function splitcap(
     progress_callback = progress_noop_;
     kwargs...
 )
-    KeyType = strip_nothing_(Core.Compiler.return_type(record2key, (PcapRecord,)))
-    StreamType = Core.Compiler.return_type(key2stream, (KeyType,))
+    KeyType = strip_nothing_(Core.Compiler.return_type(record2key, Tuple{PcapRecord}))
+    StreamType = Core.Compiler.return_type(key2stream, Tuple{KeyType})
     splitcap(KeyType, StreamType, reader, record2key, key2stream, progress_callback; kwargs...)
 end
