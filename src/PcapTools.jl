@@ -11,6 +11,7 @@ export PcapReader, PcapStreamReader, PcapBufferReader
 export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
 export splitcap
+export pcap_has_fcs, ETHERNET_FCS_LENGTH
 
 abstract type PcapReader end
 abstract type PcapWriter end
@@ -22,5 +23,6 @@ include("buffer_reader.jl")
 include("stream_reader.jl")
 include("stream_writer.jl")
 include("splitcap.jl")
+include("fcs.jl")
 
 end
