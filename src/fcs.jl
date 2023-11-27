@@ -1,5 +1,11 @@
-const ETHERNET_MIN_LENGTH = 64
 const ETHERNET_FCS_LENGTH = 4
+
+# NOTE: some constants pulled from NetworkProtocols.jl to avoid taking a dependency
+const ETHERNET_MIN_LENGTH = 64
+const ETHERNET_HEADER_SIZE = 14
+const ETHERNET_ETHERTYPE_OFFSET = 12
+const ETHERTYPE_IPV4 = UInt16(0x0800)
+const IP_TOTAL_LENGTH_OFFSET = ETHERNET_HEADER_SIZE + 2
 
 """
     pcap_has_fcs(::PcapReader)
@@ -17,13 +23,16 @@ function pcap_has_fcs(reader::PcapReader)
             # In case of min-length packets we can't be certain whether they have FCS or not.
             hdr.orig_len <= ETHERNET_MIN_LENGTH && continue
 
-            ep = decode_ethernet(record.data)
-            ep.header.ethertype != ETHERTYPE_IPV4 && continue
+            frame = pointer(record.data)
+            ethertype = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + ETHERNET_ETHERTYPE_OFFSET))
+            ethertype = ntoh(ethertype)
+            ethertype != ETHERTYPE_IPV4 && continue
 
-            ipp = decode_ipv4(ep.payload)
-            if ipp.header.total_length + sizeof(EthernetHeader) + ETHERNET_FCS_LENGTH == hdr.orig_len
+            ip_total_length = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + IP_TOTAL_LENGTH_OFFSET))
+            ip_total_length = ntoh(ip_total_length)
+            if ip_total_length + ETHERNET_HEADER_SIZE + ETHERNET_FCS_LENGTH == hdr.orig_len
                 return true
-            elseif ipp.header.total_length + sizeof(EthernetHeader) == hdr.orig_len
+            elseif ip_total_length + ETHERNET_HEADER_SIZE == hdr.orig_len
                 return false
             end
         end
