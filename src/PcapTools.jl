@@ -4,6 +4,7 @@ using Dates
 using Mmap
 using UnixTimes
 using UnsafeArrays
+using CRC32
 
 export PcapHeader, RecordHeader
 export PcapRecord
@@ -11,7 +12,7 @@ export PcapReader, PcapStreamReader, PcapBufferReader
 export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
 export splitcap
-export pcap_has_fcs, ETHERNET_FCS_LENGTH
+export pcap_has_fcs, fcs, compute_fcs, ETHERNET_FCS_LENGTH
 
 abstract type PcapReader end
 abstract type PcapWriter end

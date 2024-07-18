@@ -49,3 +49,23 @@ function pcap_has_fcs(reader::PcapReader)
     end
 end
 
+"""
+    compute_fcs(x::PcapRecord; has_fcs=true) -> UInt32
+
+Recompute the FCS for a record. If `has_fcs` is true, assume that the record
+already has an FCS.
+"""
+function compute_fcs(x::PcapRecord; has_fcs=true)
+    data_no_fcs = has_fcs ? UnsafeArray{UInt8, 1}(x.data.pointer, x.data.size .- ETHERNET_FCS_LENGTH) : x.data
+    CRC32.unsafe_crc32(data_no_fcs, length(data_no_fcs) % Csize_t, 0x00000000)
+end
+
+"""
+    fcs(x::PcapRecord) -> UInt32
+
+Return the FCS for a record, assuming that it exists.
+"""
+function fcs(x::PcapRecord)
+    p = x.data.pointer + only(x.data.size) - ETHERNET_FCS_LENGTH
+    unsafe_load(Ptr{UInt32}(p))
+end
