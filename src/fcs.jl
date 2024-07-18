@@ -49,13 +49,32 @@ function pcap_has_fcs(reader::PcapReader)
     end
 end
 
+function _has_fcs(record::PcapRecord)
+    hdr = record.header
+    # In case of min-length packets we can't be certain whether they have FCS or not.
+    hdr.orig_len <= ETHERNET_MIN_LENGTH && return true
+
+    frame = pointer(record.data)
+    ethertype = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + ETHERNET_ETHERTYPE_OFFSET))
+    ethertype = ntoh(ethertype)
+    ethertype != ETHERTYPE_IPV4 && return false
+
+    ip_total_length = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + IP_TOTAL_LENGTH_OFFSET))
+    ip_total_length = ntoh(ip_total_length)
+    if ip_total_length + ETHERNET_HEADER_SIZE + ETHERNET_FCS_LENGTH == hdr.orig_len
+        return true
+    elseif ip_total_length + ETHERNET_HEADER_SIZE == hdr.orig_len
+        return false
+    end
+end
+
 """
-    compute_fcs(x::PcapRecord; has_fcs=true) -> UInt32
+    compute_fcs(x::PcapRecord; has_fcs::Bool = _has_fcs(x)) -> UInt32
 
 Recompute the FCS for a record. If `has_fcs` is true, assume that the record
 already has an FCS.
 """
-function compute_fcs(x::PcapRecord; has_fcs=true)
+function compute_fcs(x::PcapRecord; has_fcs::Bool = _has_fcs(x))
     data_no_fcs = has_fcs ? UnsafeArray{UInt8, 1}(x.data.pointer, x.data.size .- ETHERNET_FCS_LENGTH) : x.data
     GC.@preserve x CRC32.unsafe_crc32(data_no_fcs, length(data_no_fcs) % Csize_t, 0x00000000)
 end
