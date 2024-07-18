@@ -58,13 +58,3 @@ function compute_fcs(x::PcapRecord)
     data_no_fcs = UnsafeArray{UInt8, 1}(x.data.pointer, x.data.size .- ETHERNET_FCS_LENGTH)
     GC.@preserve x CRC32.unsafe_crc32(data_no_fcs, length(data_no_fcs) % Csize_t, 0x00000000)
 end
-
-"""
-    fcs(x::PcapRecord) -> UInt32
-
-Return the FCS for a record, assuming that it exists.
-"""
-function fcs(x::PcapRecord)
-    p = x.data.pointer + only(x.data.size) - ETHERNET_FCS_LENGTH
-    GC.@preserve x unsafe_load(Ptr{UInt32}(p))
-end

@@ -20,6 +20,13 @@ end
     UnsafeArray{UInt8, 1}(pointer(getfield(x, :underlying_data)) + offset, (len,))
 end
 
+@inline function record_field_(x::PcapRecord, ::Val{:fcs})
+    offset = getfield(x, :record_offset) + sizeof(RecordHeader)
+    len = Int(getfield(x, :header).incl_len)
+    p = pointer(getfield(x, :underlying_data)) + offset + len - ETHERNET_FCS_LENGTH
+    GC.@preserve x unsafe_load(Ptr{UInt32}(p))
+end
+
 @inline record_field_(x::PcapRecord, ::Val{f}) where {f} = getfield(x, f) 
 
 @inline Base.getproperty(x::PcapRecord, f::Symbol) = record_field_(x, Val(f))
