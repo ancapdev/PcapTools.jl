@@ -52,8 +52,7 @@ end
 """
     compute_fcs(x::PcapRecord) -> UInt32
 
-Recompute the FCS for a record. If `has_fcs` is true, assume that the record
-already has an FCS.
+Recompute the FCS for a record.
 """
 function compute_fcs(x::PcapRecord)
     data_no_fcs = UnsafeArray{UInt8, 1}(x.data.pointer, x.data.size .- ETHERNET_FCS_LENGTH)
