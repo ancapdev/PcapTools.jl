@@ -23,7 +23,7 @@ end
 
 @testset "compute_fcs" begin
     r_fcs = read(PcapBufferReader(PCAP_FCS))
-    @test compute_fcs(r_fcs) == r_fcs.fcs
+    @test check_fcs(r_fcs)
     r_no_fcs = read(PcapBufferReader(PCAP_CORRUPT_FCS))
-    @test compute_fcs(r_no_fcs) != r_no_fcs.fcs
+    @test !check_fcs(r_no_fcs)
 end
