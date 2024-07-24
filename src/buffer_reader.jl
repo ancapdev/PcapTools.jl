@@ -9,6 +9,7 @@ mutable struct PcapBufferReader <: PcapReader
     mark::Int64
     usec_mul::Int64
     bswapped::Bool
+    shared_data::Bool
 
     @doc """
         PcapBufferReader(data::Vector{UInt8})
@@ -16,12 +17,12 @@ mutable struct PcapBufferReader <: PcapReader
     Create reader over `data`. Will read and process pcap header,
     and yield records through `read(::PcapBufferReader)`.
     """
-    function PcapBufferReader(data::Vector{UInt8})
+    function PcapBufferReader(data::Vector{UInt8}; shared_data = true)
         length(data) < sizeof(PcapHeader) && throw(EOFError())
         rh = data[1:sizeof(PcapHeader)]
         h = unsafe_load(Ptr{PcapHeader}(pointer(data)))
         h, bswapped, nanotime = process_header(h)
-        new(data, rh, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped)
+        new(data, rh, h, sizeof(h), -1, nanotime ? 1 : 1000, bswapped, shared_data)
     end
 end
 
@@ -33,10 +34,14 @@ Memory map file in `path` and create PcapBufferReader over its content.
 function PcapBufferReader(path::AbstractString)
     io = open(path)
     data = Mmap.mmap(io)
-    PcapBufferReader(data)
+    # NOTE: `man mmap` says we can close the file without invalidating the mapping
+    close(io)
+    PcapBufferReader(data; shared_data = false)
 end
 
 function Base.close(x::PcapBufferReader)
+    # NOTE: MMap.jl relies on finalizers to call munmap()
+    x.shared_data || finalize(x.data)
     x.data = UInt8[]
     x.offset = 0
     nothing
