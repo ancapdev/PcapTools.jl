@@ -26,13 +26,18 @@ mutable struct PcapBufferReader <: PcapReader
 end
 
 """
-    PcapBufferReader(path::AbstractString)
+    PcapBufferReader(path::AbstractString; mmap = false)
 
-Memory map file in `path` and create PcapBufferReader over its content.
+Read file in `path` to memory and create PcapBufferReader over its content.
+
+If `mmap = true`, file is Mmap.mmap'd to memory instead of reading it.
 """
-function PcapBufferReader(path::AbstractString)
-    io = open(path)
-    data = Mmap.mmap(io)
+function PcapBufferReader(path::AbstractString; mmap = false)
+    if mmap
+        data = open(Mmap.mmap, path)
+    else
+        data = read(path)
+    end
     PcapBufferReader(data)
 end
 
