@@ -27,6 +27,12 @@ end
     GC.@preserve x unsafe_load(Ptr{UInt32}(p))
 end
 
-@inline record_field_(x::PcapRecord, ::Val{f}) where {f} = getfield(x, f) 
+@inline function record_field_(x::PcapRecord, ::Val{:bytes})
+    offset = getfield(x, :record_offset)
+    len = sizeof(RecordHeader) + getfield(x, :header).incl_len
+    unsafe_wrap(Vector{UInt8}, (pointer(getfield(x, :underlying_data)) + offset), len)
+end
+
+@inline record_field_(x::PcapRecord, ::Val{f}) where {f} = getfield(x, f)
 
 @inline Base.getproperty(x::PcapRecord, f::Symbol) = record_field_(x, Val(f))
