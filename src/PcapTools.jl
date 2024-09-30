@@ -13,6 +13,7 @@ export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
 export splitcap
 export pcap_has_fcs, check_fcs, compute_fcs, ETHERNET_FCS_LENGTH
+export FcsPresent, FcsAbsent, FcsUndetermined, try_detect_fcs
 
 abstract type PcapReader end
 abstract type PcapWriter end

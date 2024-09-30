@@ -30,32 +30,34 @@ const PCAP_NONIP = """
 AAYEAAFkP18B40Na4gKMAAAAAAAAWuICgQAAAAAAAAAAAAAAAAAAAAAAAOr6Tyw=
 """
 
-check_has_fcs(packets; confirm_checksum=true) =
+check_detect_fcs(packets; confirm_checksum=true) =
     pushfirst!(packets, PCAP_FILE_HEADER) |>
     join |>
     base64decode |>
     PcapBufferReader |>
-    (x -> pcap_has_fcs(x; confirm_checksum))
+    (x -> try_detect_fcs(x; confirm_checksum))
 
 @testset "pcap_has_fcs" begin
-    @test check_has_fcs([PCAP_FCS])
-    @test !check_has_fcs([PCAP_NOFCS])
+    @test pcap_has_fcs(PcapBufferReader(base64decode(PCAP_FILE_HEADER * PCAP_FCS)))
+    @test !pcap_has_fcs(PcapBufferReader(base64decode(PCAP_FILE_HEADER * PCAP_NOFCS)))
+end
 
-    @test isnothing(check_has_fcs([PCAP_NONIP]))
-    @test isnothing(check_has_fcs([PCAP_SMALL]))
-    @test isnothing(check_has_fcs([""])) # empty pcap
+@testset "try_detect_fcs" begin
+    @test check_detect_fcs([PCAP_NONIP]) == FcsUndetermined
+    @test check_detect_fcs([PCAP_SMALL]) == FcsUndetermined
+    @test check_detect_fcs([""]) == FcsUndetermined # empty pcap
 
-    @test check_has_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_FCS])
-    @test !check_has_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_NOFCS])
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_FCS]) == FcsPresent
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_NOFCS]) == FcsAbsent
 
     # Corrupt FCS packets will be ignored by default
-    @test isnothing(check_has_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]))
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]) == FcsUndetermined
     # But corrupt FCS can be explicitly allowed
-    @test check_has_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]; confirm_checksum=false)
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]; confirm_checksum=false) == FcsPresent
 
     # Make sure we skip corrupt frames if confirm_checksum is on
-    @test check_has_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_FCS])
-    @test !check_has_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_NOFCS])
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_FCS]) == FcsPresent
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_NOFCS]) == FcsAbsent
 end
 
 @testset "compute_fcs" begin
