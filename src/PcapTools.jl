@@ -11,9 +11,10 @@ export PcapRecord
 export PcapReader, PcapStreamReader, PcapBufferReader
 export PcapWriter, PcapStreamWriter
 export LINKTYPE_NULL, LINKTYPE_ETHERNET
+export ETHERNET_FCS_LENGTH
+export FCSPresence, FCS_PRESENT, FCS_ABSENT, FCS_UNDETERMINED
 export splitcap
-export pcap_has_fcs, check_fcs, compute_fcs, ETHERNET_FCS_LENGTH
-export FcsPresent, FcsAbsent, FcsUndetermined, try_detect_fcs
+export try_detect_fcs, pcap_has_fcs, check_fcs, compute_fcs
 
 abstract type PcapReader end
 abstract type PcapWriter end

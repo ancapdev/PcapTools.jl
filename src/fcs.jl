@@ -7,7 +7,7 @@ const ETHERNET_ETHERTYPE_OFFSET = 12
 const ETHERTYPE_IPV4 = UInt16(0x0800)
 const IP_TOTAL_LENGTH_OFFSET = ETHERNET_HEADER_SIZE + 2
 
-@enum FcsStatus FcsPresent FcsAbsent FcsUndetermined
+@enum FCSPresence FCS_PRESENT FCS_ABSENT FCS_UNDETERMINED
 
 """
     try_detect_fcs(::PcapReader; confirm_checksum = true) -> FcsStatus
@@ -37,13 +37,13 @@ function try_detect_fcs(reader::PcapReader; confirm_checksum::Bool = true)
             ip_total_length = ntoh(ip_total_length)
             if ip_total_length + ETHERNET_HEADER_SIZE + ETHERNET_FCS_LENGTH == hdr.orig_len
                 if !confirm_checksum || check_fcs(record)
-                    return FcsPresent
+                    return FCS_PRESENT
                 end
             elseif ip_total_length + ETHERNET_HEADER_SIZE == hdr.orig_len
-                return FcsAbsent
+                return FCS_ABSENT
             end
         end
-        return FcsUndetermined
+        return FCS_UNDETERMINED
     finally
         reset(reader)
     end
@@ -53,7 +53,7 @@ end
 """
     pcap_has_fcs(::PcapReader; confirm_checksum = true) -> Union{Nothing, Bool}
 """
-pcap_has_fcs(reader::PcapReader; confirm_checksum=true) = try_detect_fcs(reader; confirm_checksum) == FcsPresent
+pcap_has_fcs(reader::PcapReader; kwargs...) = try_detect_fcs(reader; kwargs...) == FCS_PRESENT
 
 
 """

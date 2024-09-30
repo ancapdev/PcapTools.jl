@@ -43,21 +43,21 @@ check_detect_fcs(packets; confirm_checksum=true) =
 end
 
 @testset "try_detect_fcs" begin
-    @test check_detect_fcs([PCAP_NONIP]) == FcsUndetermined
-    @test check_detect_fcs([PCAP_SMALL]) == FcsUndetermined
-    @test check_detect_fcs([""]) == FcsUndetermined # empty pcap
+    @test check_detect_fcs([PCAP_NONIP]) == FCS_UNDETERMINED
+    @test check_detect_fcs([PCAP_SMALL]) == FCS_UNDETERMINED
+    @test check_detect_fcs([""]) == FCS_UNDETERMINED # empty pcap
 
-    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_FCS]) == FcsPresent
-    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_NOFCS]) == FcsAbsent
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_FCS]) == FCS_PRESENT
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_NOFCS]) == FCS_ABSENT
 
     # Corrupt FCS packets will be ignored by default
-    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]) == FcsUndetermined
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]) == FCS_UNDETERMINED
     # But corrupt FCS can be explicitly allowed
-    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]; confirm_checksum=false) == FcsPresent
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS]; confirm_checksum = false) == FCS_PRESENT
 
     # Make sure we skip corrupt frames if confirm_checksum is on
-    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_FCS]) == FcsPresent
-    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_NOFCS]) == FcsAbsent
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_FCS]) == FCS_PRESENT
+    @test check_detect_fcs([PCAP_NONIP, PCAP_SMALL, PCAP_CORRUPT_FCS, PCAP_NOFCS]) == FCS_ABSENT
 end
 
 @testset "compute_fcs" begin
