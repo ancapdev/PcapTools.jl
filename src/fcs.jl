@@ -36,14 +36,7 @@ function pcap_has_fcs(reader::PcapReader; confirm_checksum::Bool = true)
             ip_total_length = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + IP_TOTAL_LENGTH_OFFSET))
             ip_total_length = ntoh(ip_total_length)
             if ip_total_length + ETHERNET_HEADER_SIZE + ETHERNET_FCS_LENGTH == hdr.orig_len
-                if confirm_checksum
-                    if check_fcs(record)
-                        return true
-                    else
-                        # Could be a corrupt frame, keep looking
-                        continue
-                    end
-                else
+                if !confirm_checksum || check_fcs(record)
                     return true
                 end
             elseif ip_total_length + ETHERNET_HEADER_SIZE == hdr.orig_len
