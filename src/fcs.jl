@@ -44,6 +44,12 @@ function try_detect_fcs(reader::PcapReader; confirm_checksum::Bool = true)
             end
         end
         return FCS_UNDETERMINED
+    catch e
+        if e isa EOFError
+            return FCS_UNDETERMINED
+        else
+            rethrow()
+        end
     finally
         reset(reader)
     end
