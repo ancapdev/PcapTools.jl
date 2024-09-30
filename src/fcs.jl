@@ -18,7 +18,7 @@ If it is not possible to determine the status, return `nothing`.
 By default, potential FCS frames have their checksum recomputed as additional
 confirmation: disable this with `confirm_checksum = false`.
 """
-function pcap_has_fcs(reader::PcapReader; confirm_checksum=true)
+function pcap_has_fcs(reader::PcapReader; confirm_checksum::Bool = true)
     mark(reader)
     try
         while !eof(reader)
