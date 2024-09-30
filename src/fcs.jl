@@ -8,12 +8,17 @@ const ETHERTYPE_IPV4 = UInt16(0x0800)
 const IP_TOTAL_LENGTH_OFFSET = ETHERNET_HEADER_SIZE + 2
 
 """
-    pcap_has_fcs(::PcapReader)
+    pcap_has_fcs(::PcapReader; confirm_checksum = true) -> Union{Nothing, Bool}
 
 Heuristically determine whether captured frames contain Ethernet FCS or not.
 Unfortunately, PCAP format doesn't provide this information explicitly.
+
+If it is not possible to determine the status, return `nothing`.
+
+By default, potential FCS frames have their checksum recomputed as additional
+confirmation: disable this with `confirm_checksum = false`.
 """
-function pcap_has_fcs(reader::PcapReader)
+function pcap_has_fcs(reader::PcapReader; confirm_checksum=true)
     mark(reader)
     try
         while !eof(reader)
@@ -31,19 +36,22 @@ function pcap_has_fcs(reader::PcapReader)
             ip_total_length = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + IP_TOTAL_LENGTH_OFFSET))
             ip_total_length = ntoh(ip_total_length)
             if ip_total_length + ETHERNET_HEADER_SIZE + ETHERNET_FCS_LENGTH == hdr.orig_len
-                return true
+                if confirm_checksum
+                    if check_fcs(record)
+                        return true
+                    else
+                        # Could be a corrupt frame, keep looking
+                        continue
+                    end
+                else
+                    return true
+                end
             elseif ip_total_length + ETHERNET_HEADER_SIZE == hdr.orig_len
                 return false
             end
         end
-        # if we couldn't read single IP packet, it doesn't really matter what to return
-        return false
-    catch e
-        if e isa EOFError
-            return false
-        else
-            rethrow()
-        end
+        # Couldn't find any packets useful for FCS detection
+        return nothing
     finally
         reset(reader)
     end
@@ -55,7 +63,7 @@ end
 Recompute the FCS for a record.
 """
 function compute_fcs(x::PcapRecord)
-    data_no_fcs = UnsafeArray{UInt8, 1}(x.data.pointer, x.data.size .- ETHERNET_FCS_LENGTH)
+    data_no_fcs = UnsafeArray{UInt8,1}(x.data.pointer, x.data.size .- ETHERNET_FCS_LENGTH)
     GC.@preserve x CRC32.unsafe_crc32(data_no_fcs, length(data_no_fcs) % Csize_t, 0x00000000)
 end
 
