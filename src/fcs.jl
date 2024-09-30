@@ -7,13 +7,18 @@ const ETHERNET_ETHERTYPE_OFFSET = 12
 const ETHERTYPE_IPV4 = UInt16(0x0800)
 const IP_TOTAL_LENGTH_OFFSET = ETHERNET_HEADER_SIZE + 2
 
+@enum FCSPresence FCS_PRESENT FCS_ABSENT FCS_UNDETERMINED
+
 """
-    pcap_has_fcs(::PcapReader)
+    try_detect_fcs(::PcapReader; confirm_checksum = true) -> FcsStatus
 
 Heuristically determine whether captured frames contain Ethernet FCS or not.
 Unfortunately, PCAP format doesn't provide this information explicitly.
+
+By default, potential FCS frames have their checksum recomputed as additional
+confirmation: disable this with `confirm_checksum = false`.
 """
-function pcap_has_fcs(reader::PcapReader)
+function try_detect_fcs(reader::PcapReader; confirm_checksum::Bool = true)
     mark(reader)
     try
         while !eof(reader)
@@ -31,16 +36,17 @@ function pcap_has_fcs(reader::PcapReader)
             ip_total_length = GC.@preserve record unsafe_load(convert(Ptr{UInt16}, frame + IP_TOTAL_LENGTH_OFFSET))
             ip_total_length = ntoh(ip_total_length)
             if ip_total_length + ETHERNET_HEADER_SIZE + ETHERNET_FCS_LENGTH == hdr.orig_len
-                return true
+                if !confirm_checksum || check_fcs(record)
+                    return FCS_PRESENT
+                end
             elseif ip_total_length + ETHERNET_HEADER_SIZE == hdr.orig_len
-                return false
+                return FCS_ABSENT
             end
         end
-        # if we couldn't read single IP packet, it doesn't really matter what to return
-        return false
+        return FCS_UNDETERMINED
     catch e
         if e isa EOFError
-            return false
+            return FCS_UNDETERMINED
         else
             rethrow()
         end
@@ -48,6 +54,13 @@ function pcap_has_fcs(reader::PcapReader)
         reset(reader)
     end
 end
+
+
+"""
+    pcap_has_fcs(::PcapReader; confirm_checksum = true) -> Union{Nothing, Bool}
+"""
+pcap_has_fcs(reader::PcapReader; kwargs...) = try_detect_fcs(reader; kwargs...) == FCS_PRESENT
+
 
 """
     compute_fcs(x::PcapRecord) -> UInt32
